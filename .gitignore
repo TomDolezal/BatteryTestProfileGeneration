@@ -4,3 +4,10 @@ __pycache__/
 venv/
 tests/
 sample_data/PVBESS_Greedy_full.csv
+sample_data/FCR_1PE_LFP.csv
+sample_data/PS_Cluster3.csv
+generated_cell_profile_FCR.csv
+generated_cell_profile_PS.csv
+DEV_demo_FCR.ipynb
+DEV_demo_PS.ipynb
+
