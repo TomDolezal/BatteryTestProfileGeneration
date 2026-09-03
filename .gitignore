@@ -10,4 +10,6 @@ generated_cell_profile_FCR.csv
 generated_cell_profile_PS.csv
 DEV_demo_FCR.ipynb
 DEV_demo_PS.ipynb
-
+DEV_demo_PV.ipynb
+DEV_select_window_validation.ipynb
+DEV_soc_comparison.ipynb
