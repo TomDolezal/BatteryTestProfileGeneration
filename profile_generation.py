@@ -48,6 +48,7 @@ class RunResult:
     current: Optional[np.ndarray] = None
     voltage: Optional[np.ndarray] = None
     power_cell: Optional[np.ndarray] = None
+    soc_ref: Optional[np.ndarray] = None   # reference SOC in cell terms (after soc_window mapping)
 
 
 @dataclass
@@ -72,6 +73,12 @@ class ProfileGenerationOutput:
     best_results: Optional[RunResult] = None
     best_scale_divisor: Optional[float] = None
     best_drift_correction: Optional[float] = None
+
+
+def map_soc_to_cell(soc_bess, soc_lo: float, soc_hi: float):
+    """Linearly maps a BESS SOC [%] (0-100) onto the cell SOC window
+    [soc_lo, soc_hi] [%]: 0 % -> soc_lo, 100 % -> soc_hi."""
+    return soc_lo + (soc_hi - soc_lo) * np.asarray(soc_bess, dtype=float) / 100.0
 
 
 # ============================================================
@@ -123,6 +130,15 @@ def run_battery_model(profile_data: dict, mode: str, sim_model: dict,
         result.is_valid = False
         result.message = f'Mode "{mode}" not implemented yet.'
         return result
+
+    # Map the BESS SOC range (0-100 %) onto the cell SOC window, so that a
+    # BESS operating across its full usable range keeps a margin to the cell
+    # limits. The scale divisor then adjusts the current to the narrower window.
+    soc_lo, soc_hi = opts.get("soc_window", (0.0, 100.0))
+    if (soc_lo, soc_hi) != (0.0, 100.0):
+        soc0 = map_soc_to_cell(soc0, soc_lo, soc_hi)
+        if soc_ref is not None:
+            soc_ref = map_soc_to_cell(soc_ref, soc_lo, soc_hi)
 
     n = power_bess.size
     power_cell = power_bess / scale_divisor
@@ -226,6 +242,7 @@ def run_battery_model(profile_data: dict, mode: str, sim_model: dict,
     result.current = current
     result.voltage = voltage
     result.power_cell = power_cell
+    result.soc_ref = soc_ref
 
     if mode == "power_soc":
         if np.all(np.isfinite(soc)) and np.all(np.isfinite(soc_ref)):

@@ -111,6 +111,9 @@ def apply_default_options(opts: dict) -> dict:
     opts.setdefault("charging_positive", False)
     opts.setdefault("drift_correction", 1.0)
     opts.setdefault("use_current_limit", False)
+    # Cell SOC window [%] that the BESS SOC range 0-100 % is mapped onto.
+    # (0, 100) = no mapping.
+    opts.setdefault("soc_window", (0.0, 100.0))
 
     opts.setdefault("tune_scale_divisor", True)
     opts.setdefault("scale_divisor_values", np.round(np.logspace(1, 4, 50)))
@@ -124,6 +127,9 @@ def apply_default_options(opts: dict) -> dict:
         raise ValueError("opts['dt'] must be positive.")
     if not (0 < opts["eta_coulomb_ef"] <= 1):
         raise ValueError("opts['eta_coulomb_ef'] must be in the interval (0, 1].")
+    lo, hi = opts["soc_window"]
+    if not (0 <= lo < hi <= 100):
+        raise ValueError("opts['soc_window'] must be (lo, hi) with 0 <= lo < hi <= 100.")
     if opts["drift_correction"] <= 0:
         raise ValueError("opts['drift_correction'] must be positive.")
     if np.any(np.asarray(opts["scale_divisor_values"]) <= 0):

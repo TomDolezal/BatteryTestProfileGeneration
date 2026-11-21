@@ -273,6 +273,38 @@ def test_tuning_recovers_known_parameters():
     print("PASS: tuning grid search recovers known scale_divisor/drift_correction")
 
 
+def test_soc_window_mapping():
+    """soc_window maps the BESS SOC 0-100 % onto the cell window; the default
+    (0, 100) leaves results unchanged."""
+    cell_model = _flat_cell_model()
+    sim_model = make_sim_cell_model(cell_model)
+    datasheet = apply_default_datasheet({})
+    power = np.array([5.0, -5.0, 5.0, 0.0])
+    soc = np.array([0.0, 50.0, 100.0, 100.0])
+    base = dict(scale_divisor=1.0, dt=1.0, charging_positive=False)
+
+    ref = run_battery_model({"power": power, "soc": soc}, "power_soc", sim_model, datasheet,
+                            apply_default_options(base))
+    same = run_battery_model({"power": power, "soc": soc}, "power_soc", sim_model, datasheet,
+                             apply_default_options({**base, "soc_window": (0.0, 100.0)}))
+    assert np.allclose(ref.soc, same.soc) and np.isclose(ref.rmse_soc, same.rmse_soc)
+
+    mapped = run_battery_model({"power": power, "soc": soc}, "power_soc", sim_model, datasheet,
+                               apply_default_options({**base, "soc_window": (10.0, 90.0)}))
+    assert mapped.is_valid
+    assert np.allclose(mapped.soc_ref, [10.0, 50.0, 90.0, 90.0])
+    assert np.isclose(mapped.soc[0], 10.0), "simulation must start at the mapped SOC"
+    assert np.allclose(mapped.current, ref.current), "current depends on power, not on the SOC mapping (flat OCV)"
+
+    for bad in [(-1.0, 50.0), (50.0, 50.0), (20.0, 101.0)]:
+        try:
+            apply_default_options({"soc_window": bad})
+        except ValueError:
+            continue
+        raise AssertionError(f"soc_window {bad} should be rejected")
+    print("PASS: soc_window maps BESS SOC onto the cell window")
+
+
 def test_power_only_mode_missing_soc_init():
     cell_model = _flat_cell_model()
     sim_model = make_sim_cell_model(cell_model)
@@ -302,6 +334,7 @@ def run_all():
         test_run_battery_model_infeasible_power,
         test_run_battery_model_length_mismatch,
         test_power_only_mode_missing_soc_init,
+        test_soc_window_mapping,
         test_tuning_recovers_known_parameters,
     ]
 
